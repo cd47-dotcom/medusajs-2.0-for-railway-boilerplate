@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework"
-import { ModuleRegistrationName } from "@medusajs/utils"
-import type { IProductModuleService } from "@medusajs/types"
+import { IProductModuleService } from '@medusajs/framework/types'
+import { Modules } from '@medusajs/framework/utils'
 
 // Handle CORS preflight requests
 export async function OPTIONS(
@@ -18,7 +18,7 @@ export async function GET(
 
   try {
     const productModuleService: IProductModuleService = req.scope.resolve(
-      ModuleRegistrationName.PRODUCT
+      Modules.PRODUCT
     )
 
     // Retrieve product with metadata

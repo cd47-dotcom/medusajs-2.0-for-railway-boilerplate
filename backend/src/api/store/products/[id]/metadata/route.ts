@@ -25,12 +25,37 @@ export async function GET(
   const { id } = req.params;
 
   try {
-    // Get product module service (without strict typing to avoid build errors)
-    const productModuleService: any = req.scope.resolve(Modules.PRODUCT);
+    // Debug: Check what's in scope
+    console.log("Available scope keys:", Object.keys(req.scope || {}));
+    console.log("Modules.PRODUCT value:", Modules.PRODUCT);
+
+    // Try to resolve product service
+    let productModuleService: any;
+    try {
+      productModuleService = req.scope.resolve(Modules.PRODUCT);
+      console.log("Successfully resolved product service");
+    } catch (resolveError: any) {
+      console.error("Failed to resolve Modules.PRODUCT:", resolveError.message);
+      // Try alternative resolution methods
+      try {
+        productModuleService = req.scope.resolve("productService");
+        console.log("Resolved via 'productService' string");
+      } catch (e2: any) {
+        console.error("Failed to resolve 'productService':", e2.message);
+        try {
+          productModuleService = req.scope.resolve("product");
+          console.log("Resolved via 'product' string");
+        } catch (e3: any) {
+          console.error("Failed to resolve 'product':", e3.message);
+        }
+      }
+    }
 
     console.log(
       "Product service methods:",
-      Object.keys(productModuleService || {})
+      productModuleService
+        ? Object.keys(productModuleService)
+        : "null/undefined"
     );
 
     // Try different method names that might exist
@@ -117,14 +142,46 @@ export async function GET(
       }
     }
 
+    // If still no product, try to get just metadata from database directly
+    if (!product && productModuleService) {
+      console.log("Trying to get metadata directly from product service");
+      // The product service might have a different structure
+      // Try to inspect what we actually got
+      console.log("Product service type:", typeof productModuleService);
+      console.log(
+        "Product service constructor:",
+        productModuleService?.constructor?.name
+      );
+
+      // Maybe it's a query builder or has a different API
+      if (typeof productModuleService === "object") {
+        // Try to find any method that might work
+        const allMethods = Object.getOwnPropertyNames(
+          Object.getPrototypeOf(productModuleService)
+        ).filter(
+          (name) =>
+            name !== "constructor" &&
+            typeof productModuleService[name] === "function"
+        );
+        console.log("All prototype methods:", allMethods);
+      }
+    }
+
     if (!product) {
       console.error("All methods failed. Error:", errorMessage);
+      console.error(
+        "Product service was:",
+        productModuleService ? "resolved" : "null/undefined"
+      );
       res.status(404).json({
         message: "Product not found",
         error: errorMessage || "No product found with any method",
-        availableMethods: Object.keys(productModuleService || {}).filter(
-          (key) => typeof productModuleService[key] === "function"
-        ),
+        availableMethods: productModuleService
+          ? Object.keys(productModuleService).filter(
+              (key) => typeof productModuleService[key] === "function"
+            )
+          : [],
+        scopeKeys: Object.keys(req.scope || {}).slice(0, 10), // First 10 keys for debugging
       });
       return;
     }

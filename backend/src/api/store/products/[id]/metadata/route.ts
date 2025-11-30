@@ -21,10 +21,19 @@ export async function GET(
       Modules.PRODUCT
     )
 
-    // Retrieve product with metadata
-    const product = await productModuleService.retrieve(id, {
-      relations: ["variants", "variants.prices"],
+    // Use list with filter to get the product
+    const [products] = await productModuleService.list({
+      id: [id],
     })
+
+    if (!products || products.length === 0) {
+      res.status(404).json({
+        message: "Product not found",
+      })
+      return
+    }
+
+    const product = products[0]
 
     // Return product with metadata
     res.json({
